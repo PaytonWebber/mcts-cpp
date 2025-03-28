@@ -1,0 +1,127 @@
+#pragma once
+
+#include <iostream>
+#include <cmath>
+#include <random>
+#include <limits>
+#include <sys/types.h>
+#include <utility>
+#include <memory>
+#include <vector>
+
+template <typename State>
+struct Node {
+  State state;
+  int action;
+  float W;       // total reward
+  float Q;       // average reward (W/N)
+  int N; // visit count
+  std::vector<std::shared_ptr<Node<State>>> children;
+  Node<State>* parent;
+
+  Node(State s, int action, Node* parent)
+  : state(std::move(s)), action(action), parent(parent), W(0), Q(0), N(0)
+  {}
+  
+  bool is_leaf() const {
+    return children.empty();
+  }
+
+  float ucb(float C) const {
+    if (N == 0) {
+      return std::numeric_limits<float>::max();
+    }
+    int parent_n = std::max(1, parent->N);
+    return Q + C * std::sqrt((std::log(parent_n) / N));
+  }
+};
+
+class MCTS {
+public:
+  float C;
+  int simulations;
+  std::mt19937 gen;
+
+  MCTS(float C=1.414, int sims=100)
+    : C(C), simulations(sims), gen(std::random_device{}()) {}
+
+  template <typename State>
+  std::vector<float> search(State root_state) {
+    std::shared_ptr<Node<State>> root = std::make_shared<Node<State>>(root_state, -1, nullptr); 
+    for (int s=0; s<simulations; ++s) {
+      std::shared_ptr<Node<State>> leaf = select(root);
+      float value;
+      if (!leaf->state.is_terminal()) {
+        expand(leaf);
+        std::uniform_int_distribution<> dist(0, leaf->children.size() - 1);
+        std::shared_ptr<Node<State>> child = leaf->children[dist(gen)];
+        value = simulate(child);
+        leaf = child;
+      } else {
+        value = leaf->state.reward(leaf->state.current_player);
+      }
+      backpropagate(leaf, value);
+    }
+    std::vector<float> action_probs(9, 0.0);
+    float sumN = 0;
+    for (auto& child : root->children) { sumN += child->N; }
+    if (sumN < 1e-6) sumN = 1e-6;
+    for (auto& child : root->children) {
+      action_probs[child->action] = child->N / sumN;
+    }
+    return action_probs;
+  }
+
+  template <typename State>
+  std::shared_ptr<Node<State>> select(std::shared_ptr<Node<State>> node) {
+    while(!node->children.empty()) {
+      std::shared_ptr<Node<State>> best_child = nullptr;
+      float best_value = -std::numeric_limits<float>::infinity();
+      for (auto& child : node->children) {
+       float U = child->ucb(C);
+        if (U > best_value) {
+          best_value = U;
+          best_child = child;
+        }
+      }
+      node = best_child;
+    }
+    return node;
+  }
+
+  template <typename State>
+  void expand(std::shared_ptr<Node<State>> leaf) {
+    State state = leaf->state;
+    std::vector<int> actions = state.legal_actions;
+    for (int action : actions) {
+      State next_state = state.step(action);
+      auto child_node = std::make_shared<Node<State>>(next_state, action, leaf.get());
+      leaf->children.push_back(child_node);
+    }
+  }
+
+  template<typename State>
+  int simulate(std::shared_ptr<Node<State>> node) {
+    State state = node->state;
+    while(!state.is_terminal()) {
+      std::vector<int> actions = state.legal_actions;
+      std::uniform_int_distribution<> dist(0, actions.size() - 1);
+      int action = actions[dist(gen)];
+      state = state.step(action);
+    }
+    return state.reward(node->state.current_player);
+  }
+
+  template<typename State>
+  void backpropagate(std::shared_ptr<Node<State>> node, int value) {
+    float v = value;
+    Node<State>* cur = node.get();
+    while(cur != nullptr) {
+      cur->N += 1;
+      cur->W += v;
+      cur->Q = cur->W / cur->N;
+      v = -v;
+      cur = cur->parent;
+    }
+  }
+};

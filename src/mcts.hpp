@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include <cmath>
 #include <random>
 #include <limits>
@@ -32,7 +31,7 @@ struct Node {
       return std::numeric_limits<float>::max();
     }
     int parent_n = std::max(1, parent->N);
-    return Q + C * std::sqrt((std::log(parent_n) / N));
+    return Q + C * std::sqrt((std::log(parent_n) / (N+1)));
   }
 };
 
@@ -46,15 +45,14 @@ public:
     : C(C), simulations(sims), gen(std::random_device{}()) {}
 
   template <typename State>
-  std::vector<float> search(State root_state) {
+  std::pair<int, std::vector<float>> search(State root_state) {
     std::shared_ptr<Node<State>> root = std::make_shared<Node<State>>(root_state, -1, nullptr); 
     for (int s=0; s<simulations; ++s) {
       std::shared_ptr<Node<State>> leaf = select(root);
       float value;
       if (!leaf->state.is_terminal()) {
         expand(leaf);
-        std::uniform_int_distribution<> dist(0, leaf->children.size() - 1);
-        std::shared_ptr<Node<State>> child = leaf->children[dist(gen)];
+        std::shared_ptr<Node<State>> child = leaf->children[0];
         value = simulate(child);
         leaf = child;
       } else {
@@ -65,11 +63,17 @@ public:
     std::vector<float> action_probs(9, 0.0);
     float sumN = 0;
     for (auto& child : root->children) { sumN += child->N; }
-    if (sumN < 1e-6) sumN = 1e-6;
+    int best_move = 0;
+    float best_prob = 0.0; 
     for (auto& child : root->children) {
-      action_probs[child->action] = child->N / sumN;
+      float prob = child->N / sumN;
+      action_probs[child->action] = prob;
+      if (prob > best_prob) {
+        best_move = child->action;
+        best_prob = prob;
+      }
     }
-    return action_probs;
+    return {best_move, action_probs};
   }
 
   template <typename State>

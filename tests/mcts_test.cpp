@@ -1,8 +1,8 @@
 #include <cassert>
 #include <iostream>
 #include <limits>
-#include <memory>
 #include <vector>
+#include <algorithm>
 
 #include "mcts.hpp"
 #include "tictactoe.hpp"
@@ -47,7 +47,9 @@ void testMCTSOnTicTacToe() {
     
     MCTS mcts(1.414, 10);
     
-    std::vector<float> action_probs = mcts.search(state);
+    auto [move, action_probs] = mcts.search(state);
+
+    assert((std::find(state.legal_actions.begin(), state.legal_actions.end(), move) != state.legal_actions.end()));
     
     assert(action_probs.size() == 9);
     

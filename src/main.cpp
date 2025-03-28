@@ -1,13 +1,16 @@
 #include "mcts.hpp"
 #include "tictactoe.hpp"
+#include <cstdlib>
 
 int main() {
   TicTacToeState test_state = TicTacToeState();
 
   MCTS mcts = MCTS();
-  std::vector<float> probs = mcts.search(test_state);
-  for (auto i: probs) {
-   std::cout << i << " ";
+  while (!test_state.is_terminal()) {
+    test_state.render();
+    auto [best_move, probs] = mcts.search(test_state);
+    test_state = test_state.step(best_move);
   }
-  std::cout << std::endl;
+  test_state.render();
+
 }

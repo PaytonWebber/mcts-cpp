@@ -14,7 +14,7 @@ struct Node {
   int action;
   float W;       // total reward
   float Q;       // average reward (W/N)
-  int N; // visit count
+  int N;         // visit count
   std::vector<std::shared_ptr<Node<State>>> children;
   Node<State>* parent;
 
@@ -58,7 +58,7 @@ public:
       } else {
         value = leaf->state.reward(leaf->state.current_player);
       }
-      backpropagate(leaf, value);
+      backpropagate(leaf, -value);
     }
     std::vector<float> action_probs(9, 0.0);
     float sumN = 0;

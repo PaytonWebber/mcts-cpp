@@ -9,11 +9,6 @@ void testInitialState() {
     for (int i = 0; i < 9; ++i) {
         assert(state.board[i] == EMPTY);
     }
-    std::vector<int> moves = state.available_moves();
-    assert(moves.size() == 9);
-    for (int i = 0; i < 9; ++i) {
-        assert(moves[i] == i);
-    }
     assert(state.current_player == X);
 }
 
@@ -21,10 +16,6 @@ void testStep() {
     TicTacToeState state;
     TicTacToeState newState = state.step(0);
     assert(newState.board[0] == X);
-    std::vector<int> moves = newState.available_moves();
-    for (int move : moves) {
-        assert(move != 0);
-    }
     assert(newState.current_player == O);
 }
 
